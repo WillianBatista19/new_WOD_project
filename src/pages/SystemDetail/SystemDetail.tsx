@@ -12,6 +12,8 @@ const FACTION_LABELS: Record<string, string> = {
   vampiro: 'Clãs',
   lobisomem: 'Tribos',
   mago: 'Tradições',
+  changeling: 'Kiths',
+  demonio: 'Casas',
   cacador: 'Credos',
   mumia: 'Caminhos',
 }
@@ -20,6 +22,8 @@ const EDITION_LABELS: Record<string, string> = {
   vampiro: '5ª Edição',
   lobisomem: '5ª Edição',
   mago: 'Edição do 20º Aniversário',
+  changeling: 'Edição do 20º Aniversário',
+  demonio: '1ª Edição (2002)',
   cacador: 'Edição Original',
   mumia: 'Edição Original',
 }
@@ -427,13 +431,13 @@ export default function SystemDetail() {
             className="font-cinzel text-xs tracking-[0.5em] uppercase mb-4"
             style={{ color: system.color }}
           >
-            {system.id === 'mago' ? 'Disponível agora' : 'Em breve'}
+            {system.id === 'mago' || system.id === 'vampiro' ? 'Disponível agora' : 'Em breve'}
           </p>
           <h2 className="font-cinzel text-2xl md:text-3xl font-semibold text-wod-text mb-4">
             Criador de Fichas
           </h2>
           <p className="font-crimson text-xl text-wod-muted leading-relaxed mb-10">
-            {system.id === 'mago' ? (
+            {system.id === 'mago' || system.id === 'vampiro' ? (
               <>
                 Monte, preencha e exporte sua ficha completa de{' '}
                 <span style={{ color: system.color }}>{system.name}</span> diretamente nesta página.
@@ -446,7 +450,7 @@ export default function SystemDetail() {
             )}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {system.id === 'mago' && (
+            {(system.id === 'mago' || system.id === 'vampiro') && (
               <Link
                 to={`/sistemas/${system.id}/ficha`}
                 className="inline-flex items-center justify-center gap-2 font-cinzel text-xs tracking-widest uppercase px-7 py-3 rounded transition-all duration-300 text-wod-bg"

@@ -1,7 +1,15 @@
+import { useState } from 'react'
 import SystemCard from '../../components/SystemCard/SystemCard'
 import { SYSTEMS } from '../../data/systems'
 
+// Priority systems stay visible at all times — 6 on desktop, 3 on mobile. Anything past that
+// (Múmia and any future additions) only shows once "Ver mais" is expanded.
+const DESKTOP_ALWAYS_VISIBLE = 6
+const MOBILE_ALWAYS_VISIBLE = 3
+
 export default function Systems() {
+  const [showAll, setShowAll] = useState(false)
+
   return (
     <>
       {/* ── Page header ──────────────────────────────────────────────────── */}
@@ -32,10 +40,34 @@ export default function Systems() {
       <section className="py-16 px-6">
         <div className="container mx-auto max-w-7xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {SYSTEMS.map((system) => (
-              <SystemCard key={system.id} system={system} />
-            ))}
+            {SYSTEMS.map((system, i) => {
+              const visibility =
+                i < MOBILE_ALWAYS_VISIBLE
+                  ? ''
+                  : i < DESKTOP_ALWAYS_VISIBLE
+                  ? `${showAll ? 'block' : 'hidden'} md:block`
+                  : showAll
+                  ? 'block'
+                  : 'hidden'
+              return (
+                <div key={system.id} className={visibility}>
+                  <SystemCard system={system} />
+                </div>
+              )
+            })}
           </div>
+
+          {SYSTEMS.length > MOBILE_ALWAYS_VISIBLE && (
+            <div className="mt-10 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="font-cinzel text-xs tracking-widest uppercase border border-wod-border text-wod-muted px-6 py-3 rounded transition-all duration-300 hover:border-wod-text hover:text-wod-text"
+              >
+                {showAll ? 'Ver menos ↑' : 'Ver mais ↓'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </>

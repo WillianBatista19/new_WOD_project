@@ -117,6 +117,81 @@ export const SYSTEMS: GameSystem[] = [
     ],
   },
   {
+    id: 'changeling',
+    name: 'Changeling: O Sonhar',
+    subtitle: 'The Dreaming',
+    tagline: 'A magia que o mundo esqueceu ainda vive em você',
+    description:
+      'Você é um changeling — uma criatura feérica presa em corpo mortal, lutando contra a Banalidade que apaga a magia do mundo moderno.',
+    longDescription:
+      'Em Changeling: O Sonhar (Edição do 20º Aniversário), você interpreta um Kithain — a alma de uma fada encarnada num corpo humano mortal, despertada pelo Chrysalis. Presos entre o Sonho, o reino feérico de Arcádia agora fragmentado e distante, e o mundo Banal da razão fria, os changelings lutam para preservar Glamour — a energia mágica nascida da criatividade, da paixão e do encanto — antes que a Banalidade, o ceticismo esmagador da modernidade, apague de vez a magia e os force a um Undoing. Cada Kith carrega dons e fraquezas próprias de sua linhagem fae, e cada Corte impõe um código de conduta que molda como o changeling vive entre dois mundos.',
+    color: '#c4870a',
+    colorSecondary: '#8a5c05',
+    colorGlow: 'rgba(196, 135, 10, 0.4)',
+    icon: '⭐',
+    uniqueStat: {
+      name: 'Glamour',
+      description:
+        'A energia da criatividade, do encanto e da imaginação humana. Alimenta as Artes feéricas do Kithain — mas se esgota conforme a Banalidade do mundo avança sobre o Sonho.',
+    },
+    factions: [
+      { name: 'Boggans', description: 'Fadas domésticas dedicadas ao trabalho manual e à lealdade. Encontram magia na dedicação silenciosa às tarefas mais simples do cotidiano.' },
+      { name: 'Eshu', description: 'Contadores de histórias e viajantes natos. Tecem destino e narrativa por onde passam, carregando segredos de terras distantes.' },
+      { name: 'Nockers', description: 'Artesãos geniais e irascíveis. Criam maravilhas mecânicas impossíveis — e reclamam de cada imperfeição alheia (e da própria).' },
+      { name: 'Pixies', description: 'Espíritos levianos movidos por impulso e travessura. Vivem o momento com uma intensidade que poucos conseguem acompanhar.' },
+      { name: 'Pooka', description: 'Metamorfos ligados a um animal totêmico. Mentirosos charmosos que escondem verdades atrás de brincadeiras e formas mutáveis.' },
+      { name: 'Redcaps', description: 'Brutos ferozes movidos por apetites viscerais. Assustam tanto aliados quanto inimigos com sua fome selvagem.' },
+      { name: 'Satyrs', description: 'Devotos do prazer, da música e do excesso. Vivem para a celebração — e para os riscos que vêm com ela.' },
+      { name: 'Sidhe', description: 'A nobreza feérica retornada de Arcádia. Belos, orgulhosos e obcecados por honra, poder e a corte a que servem.' },
+      { name: 'Sluagh', description: 'Guardiões dos segredos mais sombrios do Sonho. Sussurram verdades que ninguém mais ousa dizer em voz alta.' },
+      { name: 'Trolls', description: 'Guerreiros leais e implacáveis. Onde há um juramento a proteger, um Troll estará de guarda até o fim.' },
+    ],
+    steps: [
+      { title: 'Escolha seu Kith', desc: 'Sua linhagem feérica define seus Dons naturais, sua afinidade com certas Artes e como os outros Kithain te enxergam.' },
+      { title: 'Defina sua Corte', desc: 'Seelie ou Unseelie: seu código de conduta feérico dita como você deve agir para manter sua ligação com o Sonho.' },
+      { title: 'Distribua Atributos', desc: 'Físico, Social e Mental em ordem de prioridade (7/5/3 pontos), como nos demais jogos do Storyteller System.' },
+      { title: 'Selecione Habilidades', desc: 'Talentos, Perícias e Conhecimentos distribuídos em três grupos de prioridade (13/9/5).' },
+      { title: 'Escolha Artes e Reinos', desc: 'As Artes definem que tipo de magia feérica você manipula; os Reinos, sobre o que essa magia atua.' },
+      { title: 'Defina Glamour e Banalidade', desc: 'Glamour alimenta seus poderes; Banalidade mede o quanto o mundo mundano já corroeu sua natureza feérica.' },
+    ],
+  },
+  {
+    id: 'demonio',
+    name: 'Demônio: A Queda',
+    subtitle: 'The Fallen',
+    tagline: 'Caído do paraíso, mas não esquecido por Deus',
+    description:
+      'Você é um anjo caído — aprisionado no Abismo por milênios, agora solto em um mundo que não reconhece mais.',
+    longDescription:
+      'Em Demônio: A Queda, você interpreta um dos Caídos: anjos que se rebelaram contra o Criador na Guerra antiga, foram banidos ao Abismo por milênios de tormento, e agora retornam à Terra possuindo corpos humanos — seus Recipientes — para reconstruir o que perderam. Dividido entre a fúria da rebelião passada e a saudade da comunhão com Deus, cada Caído carrega uma Casa angelical que define sua natureza primordial e deve equilibrar sua Fé, a lembrança do que era antes da Queda, contra a Tormenta, a corrupção que ameaça consumir o que resta de sua divindade. O Apocalipse se aproxima, e cada Caído decide: reconciliação, vingança ou destruição.',
+    color: '#1a4a8a',
+    colorSecondary: '#0d2550',
+    colorGlow: 'rgba(26, 74, 138, 0.45)',
+    icon: '👑',
+    uniqueStat: {
+      name: 'Fé',
+      description:
+        'A lembrança viva de sua natureza angelical e a força que alimenta seus Lores. Quanto maior a Fé, mais divino o Caído permanece — mas a Tormenta sempre espreita, pronta a consumir o que resta dessa divindade.',
+    },
+    factions: [
+      { name: 'Namaru', description: 'Anjos da destruição e da guerra santa. Carregam a fúria de quem lutou nas linhas de frente da rebelião original.' },
+      { name: 'Asharu', description: 'Guardiões vigilantes que observavam a criação por ordem divina. Agora vigiam a humanidade com o mesmo olhar implacável.' },
+      { name: 'Annunaki', description: 'Devoradores de mundos e conceitos. Sua fome primordial ameaça consumir tudo que tocam, inclusive a si mesmos.' },
+      { name: 'Lammasu', description: 'Mestres da forma e da transformação. Manipulam matéria e corpo com uma facilidade que beira o blasfemo.' },
+      { name: 'Rabisu', description: 'Sedutores e corruptores natos. Encontram a fraqueza humana com uma precisão quase profética.' },
+      { name: 'Halaku', description: 'Corruptores sutis da mente e da percepção. Preferem a mentira elegante à violência bruta.' },
+      { name: 'Shedim', description: 'Devastadores movidos por fúria pura. Deixam ruína só para provar que ainda podem destruir algo.' },
+    ],
+    steps: [
+      { title: 'Escolha sua Casa', desc: 'Sua Casa angelical define seus Lores natos, seu papel na Guerra original e sua visão sobre a Queda.' },
+      { title: 'Escolha seu Recipiente', desc: 'O corpo humano que você possui carrega uma vida e memórias próprias — e influencia como você se apresenta ao mundo.' },
+      { title: 'Distribua Atributos', desc: 'Físico, Social e Mental em ordem de prioridade (7/5/3 pontos).' },
+      { title: 'Selecione Habilidades', desc: 'Talentos, Perícias e Conhecimentos distribuídos em três grupos de prioridade (13/9/5).' },
+      { title: 'Escolha Lores e Feitos', desc: 'Os Lores são os domínios de poder angelical de sua Casa; Feitos são as manifestações práticas desses Lores.' },
+      { title: 'Defina Fé e Tormenta', desc: 'Fé mede sua conexão com sua natureza divina; Tormenta, o quanto a corrupção do Abismo ainda te consome.' },
+    ],
+  },
+  {
     id: 'cacador',
     name: 'Caçador: O Ajuste de Contas',
     subtitle: 'Hunter: The Reckoning',

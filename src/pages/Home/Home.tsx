@@ -1,7 +1,13 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import SystemCard from '../../components/SystemCard/SystemCard'
 import { SYSTEMS } from '../../data/systems'
 import MistBackgroundLocal from '../../components/MistBackground/MistBackgroundLocal'
+
+// Priority systems stay visible at all times — 6 on desktop, 3 on mobile. Anything past that
+// (Múmia and any future additions) only shows once "Ver mais" is expanded.
+const DESKTOP_ALWAYS_VISIBLE = 6
+const MOBILE_ALWAYS_VISIBLE = 3
 
 const creationSteps = [
   {
@@ -27,6 +33,8 @@ const creationSteps = [
 ]
 
 export default function Home() {
+  const [showAll, setShowAll] = useState(false)
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
@@ -145,10 +153,34 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {SYSTEMS.map((system) => (
-              <SystemCard key={system.id} system={system} />
-            ))}
+            {SYSTEMS.map((system, i) => {
+              const visibility =
+                i < MOBILE_ALWAYS_VISIBLE
+                  ? ''
+                  : i < DESKTOP_ALWAYS_VISIBLE
+                  ? `${showAll ? 'block' : 'hidden'} md:block`
+                  : showAll
+                  ? 'block'
+                  : 'hidden'
+              return (
+                <div key={system.id} className={visibility}>
+                  <SystemCard system={system} />
+                </div>
+              )
+            })}
           </div>
+
+          {SYSTEMS.length > MOBILE_ALWAYS_VISIBLE && (
+            <div className="mt-10 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="font-cinzel text-xs tracking-widest uppercase border border-wod-border text-wod-muted px-6 py-3 rounded transition-all duration-300 hover:border-wod-text hover:text-wod-text"
+              >
+                {showAll ? 'Ver menos ↑' : 'Ver mais ↓'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Bottom fade into Character Creation section */}

@@ -5,6 +5,7 @@ import Home from './pages/Home/Home'
 import Systems from './pages/Systems/Systems'
 import SystemDetail from './pages/SystemDetail/SystemDetail'
 import CharacterSheet from './pages/CharacterSheet/CharacterSheet'
+import VampireSheet from './pages/CharacterSheet/VampireSheet'
 import WhatIsRPG from './pages/WhatIsRPG/WhatIsRPG'
 import MistBackground from './components/MistBackground/MistBackground'
 import ScrollToTop from './components/ScrollToTop'
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/o-que-e-rpg" element={<WhatIsRPG />} />
           <Route path="/sistemas" element={<Systems />} />
           <Route path="/sistemas/:id" element={<SystemDetail />} />
+          <Route path="/sistemas/vampiro/ficha" element={<VampireSheet />} />
           <Route path="/sistemas/:id/ficha" element={<CharacterSheet />} />
           <Route
             path="*"

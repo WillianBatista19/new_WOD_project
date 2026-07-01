@@ -32,6 +32,21 @@ export default function SystemIcon({ systemId, size = 48, className = '' }: Syst
         </svg>
       )
 
+    case 'changeling':
+      return (
+        <svg {...base} viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2z" />
+        </svg>
+      )
+
+    case 'demonio':
+      return (
+        <svg {...base} viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 12C10 6 6 4 2 4c1 5 4 8 10 8z" />
+          <path d="M12 12c2-6 6-8 10-8-1 5-4 8-10 8z" />
+        </svg>
+      )
+
     case 'cacador':
       return (
         <svg {...base} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
