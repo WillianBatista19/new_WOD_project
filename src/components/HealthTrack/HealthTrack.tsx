@@ -1,5 +1,5 @@
 import { HealthLevel } from '../../types'
-import { HEALTH_LEVELS, groupHealthLevels } from '../../data/health'
+import { HEALTH_LEVELS, groupHealthLevels, healthPenaltyLabel, healthHasPenalty } from '../../data/health'
 
 interface HealthTrackProps {
   value: boolean[]
@@ -18,7 +18,7 @@ export default function HealthTrack({ value, onChange, levels = HEALTH_LEVELS }:
 
   const highestFilled = value.reduce((acc, filled, i) => (filled ? i : acc), -1)
   const currentLevel = highestFilled >= 0 ? levels[highestFilled] : null
-  const hasPenalty = !!currentLevel && currentLevel.penalty !== '0'
+  const hasPenalty = healthHasPenalty(currentLevel)
 
   return (
     <div>
@@ -56,7 +56,7 @@ export default function HealthTrack({ value, onChange, levels = HEALTH_LEVELS }:
       <div className="mt-4 pt-3 border-t border-wod-border/50 flex items-center justify-between">
         <span className="font-cinzel text-[10px] tracking-widest uppercase text-wod-muted">Penalidade atual</span>
         <span className={`font-cinzel text-sm font-semibold ${hasPenalty ? 'text-red-400' : 'text-wod-text'}`}>
-          {currentLevel ? `${currentLevel.label} (${currentLevel.penalty})` : 'Nenhum ferimento'}
+          {healthPenaltyLabel(currentLevel)}
         </span>
       </div>
     </div>

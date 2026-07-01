@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SYSTEMS } from '../../data/systems'
 import DotRating from '../../components/DotRating/DotRating'
@@ -7,8 +7,10 @@ import { HEALTH_LEVELS } from '../../data/health'
 import QuickReferenceSidebar from '../../components/QuickReference/QuickReferenceSidebar'
 import QuickReferenceModal, { QuickReferenceModalState } from '../../components/QuickReference/QuickReferenceModal'
 import ReferenceButton from '../../components/QuickReference/ReferenceButton'
+import ExportMenu, { ExportKind } from '../../components/ExportMenu/ExportMenu'
 import { DotTrait, MageSheetData } from '../../types'
 import { generateMagePdf } from '../../lib/generateMagePdf'
+import { generateMageFlatPdf } from '../../lib/generateMageFlatPdf'
 
 const MAGE = SYSTEMS.find((s) => s.id === 'mago')!
 
@@ -155,9 +157,10 @@ function SectionCard({
 
 export default function MageSheet() {
   const [data, setData] = useState<MageSheetData>(initialData)
-  const [isExporting, setIsExporting] = useState(false)
+  const [exporting, setExporting] = useState<ExportKind | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [modalState, setModalState] = useState<QuickReferenceModalState | null>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
 
   const updateHeader = (field: keyof MageSheetData['header'], value: string) =>
     setData((d) => ({ ...d, header: { ...d.header, [field]: value } }))
@@ -219,20 +222,28 @@ export default function MageSheet() {
 
   const spherePoints = sumPoints(data.spheres, 0)
 
-  const handleExportPDF = async () => {
-    setIsExporting(true)
+  const downloadPdf = (bytes: Uint8Array, suffix: string) => {
+    const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const fileName = data.header.name.trim() || 'personagem'
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ficha-mago-${fileName.toLowerCase().replace(/\s+/g, '-')}-${suffix}.pdf`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExport = async (kind: ExportKind) => {
+    setExporting(kind)
     try {
-      const bytes = await generateMagePdf(data)
-      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const fileName = data.header.name.trim() || 'personagem'
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `ficha-mago-${fileName.toLowerCase().replace(/\s+/g, '-')}.pdf`
-      link.click()
-      URL.revokeObjectURL(url)
+      if (kind === 'editavel') {
+        downloadPdf(await generateMagePdf(data), 'editavel')
+      } else {
+        if (!sheetRef.current) return
+        downloadPdf(await generateMageFlatPdf(sheetRef.current), 'fixa')
+      }
     } finally {
-      setIsExporting(false)
+      setExporting(null)
     }
   }
 
@@ -248,8 +259,8 @@ export default function MageSheet() {
     >
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
       <div className="sticky top-16 z-[45] border-b border-wod-border bg-wod-bg/95 backdrop-blur-sm px-6 py-4">
-        <div className="container mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-4">
-          <div>
+        <div className="container mx-auto max-w-6xl flex items-center justify-between gap-4 flex-nowrap overflow-x-auto">
+          <div className="shrink-0 whitespace-nowrap">
             <p
               className="font-cinzel text-[10px] tracking-[0.4em] uppercase"
               style={{ color: MAGE.color }}
@@ -258,10 +269,10 @@ export default function MageSheet() {
             </p>
             <h1 className="font-cinzel text-lg font-semibold text-wod-text">{MAGE.name}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0 whitespace-nowrap">
             <Link
               to="/sistemas/mago"
-              className="font-cinzel text-xs tracking-widest uppercase text-wod-muted hover:text-wod-text transition-colors"
+              className="shrink-0 whitespace-nowrap font-cinzel text-xs tracking-widest uppercase text-wod-muted hover:text-wod-text transition-colors"
             >
               ← Voltar
             </Link>
@@ -271,7 +282,7 @@ export default function MageSheet() {
               aria-label={sidebarOpen ? 'Fechar referência rápida' : 'Abrir referência rápida'}
               aria-pressed={sidebarOpen}
               title="Referência rápida"
-              className="hidden lg:inline-flex items-center justify-center w-9 h-9 rounded-full border font-cinzel text-sm transition-colors"
+              className="hidden lg:inline-flex shrink-0 items-center justify-center w-9 h-9 rounded-full border font-cinzel text-sm transition-colors"
               style={{
                 borderColor: sidebarOpen ? MAGE.color : '#2a2a3a',
                 color: sidebarOpen ? MAGE.color : '#8a8090',
@@ -279,21 +290,13 @@ export default function MageSheet() {
             >
               ?
             </button>
-            <button
-              type="button"
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              className="inline-flex items-center justify-center gap-2 font-cinzel text-xs tracking-widest uppercase text-wod-bg px-6 py-3 rounded transition-all duration-300 disabled:opacity-50 disabled:cursor-wait"
-              style={{ backgroundColor: MAGE.color }}
-            >
-              {isExporting ? 'Gerando PDF…' : 'Exportar PDF'}
-            </button>
+            <ExportMenu color={MAGE.color} exporting={exporting} onExport={handleExport} />
           </div>
         </div>
       </div>
 
       {/* ── Sheet ────────────────────────────────────────────────────────── */}
-      <div className={`bg-wod-bg transition-[margin] duration-300 ease-in-out ${sidebarOpen ? 'lg:mr-96' : ''}`}>
+      <div ref={sheetRef} className={`bg-wod-bg transition-[margin] duration-300 ease-in-out ${sidebarOpen ? 'lg:mr-96' : ''}`}>
         <div className="h-1.5" style={{ backgroundColor: MAGE.color }} />
 
         <div className="container mx-auto max-w-6xl px-6 py-10 space-y-6">

@@ -1,10 +1,10 @@
 import {
   AppearanceProviderFor,
-  PDFBool,
   PDFCheckBox,
   PDFDocument,
   PDFFont,
   PDFForm,
+  PDFHexString,
   PDFName,
   PDFPage,
   StandardFonts,
@@ -16,7 +16,7 @@ import {
 } from 'pdf-lib'
 import { DotTrait, MageSheetData } from '../types'
 import { SYSTEMS } from '../data/systems'
-import { HEALTH_LEVELS, groupHealthLevels } from '../data/health'
+import { HEALTH_LEVELS, groupHealthLevels, healthPenaltyLabel, healthHasPenalty } from '../data/health'
 
 const MAGE = SYSTEMS.find((s) => s.id === 'mago')!
 
@@ -197,7 +197,7 @@ function textFieldAt(
   topY: number,
   width: number,
   height: number,
-  opts: { multiline?: boolean; fontSize?: number } = {}
+  opts: { multiline?: boolean; fontSize?: number; name?: string; readOnly?: boolean; textColor?: ReturnType<typeof rgb> } = {}
 ) {
   if (label) canvas.text(label.toUpperCase(), x, topY - 7, { size: 6.5, color: COLORS.muted })
   const fieldTop = topY - (label ? 11 : 0)
@@ -205,7 +205,7 @@ function textFieldAt(
   canvas.rect(x, fieldY, width, height, { fill: COLORS.card, border: COLORS.border })
 
   blankFieldCounter += 1
-  const base = label ? slugify(label) : `field_${blankFieldCounter}`
+  const base = opts.name ?? (label ? slugify(label) : `field_${blankFieldCounter}`)
   const field = form.createTextField(reserveFieldName(base))
   if (opts.multiline) field.enableMultiline()
   // addToPage must run first — it's what establishes the field's default appearance (DA),
@@ -215,32 +215,54 @@ function textFieldAt(
     y: fieldY,
     width,
     height,
-    textColor: COLORS.text,
+    textColor: opts.textColor ?? COLORS.text,
     backgroundColor: COLORS.card,
     borderWidth: 0,
     font: canvas.font,
   })
   field.setFontSize(opts.fontSize ?? (opts.multiline ? 9 : 9.5))
   field.setText(value)
-  return fieldY
+  if (opts.readOnly) field.enableReadOnly()
+  return field
 }
 
-// Static, non-interactive dots — still used for Backgrounds, whose labels are freeform
-// user-editable text rather than a fixed trait name a radio group could be named after.
 function dotCheckboxRowWidth(max: number): number {
   return (max - 1) * DOT_CHECKBOX_SPACING + DOT_CHECKBOX_SIZE
 }
 
+// Attaches a mouse-up JavaScript action to a field's (first) widget. Acrobat/Reader-only —
+// viewers that don't execute PDF JavaScript (Preview, Chrome's built-in viewer, Firefox/pdf.js)
+// simply won't run it; the checkbox still works as a plain independent toggle there.
+function attachMouseUpJs(doc: PDFDocument, field: PDFCheckBox, script: string) {
+  const widget = field.acroField.getWidgets()[0]
+  const jsAction = doc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFHexString.fromText(script) })
+  widget.dict.set(PDFName.of('AA'), doc.context.obj({ U: jsAction }))
+}
+
+// Checking dot `idx` (0-based) forces every lower-numbered dot checked; unchecking it forces
+// every higher-numbered dot unchecked — the cumulative "fill up to N" behavior, driven by
+// Acrobat JS instead of a radio group (radio appearance streams rendered as toggle switches /
+// overlapping widgets in some readers).
+function cumulativeFillScript(names: string[], idx: number): string {
+  const lines = [`var f = this.getField("${names[idx]}");`, `if (f.value !== "Off") {`]
+  names.slice(0, idx).forEach((n) => lines.push(`  this.getField("${n}").checkThisBox(0, true);`))
+  lines.push(`} else {`)
+  names.slice(idx + 1).forEach((n) => lines.push(`  this.getField("${n}").checkThisBox(0, false);`))
+  lines.push(`}`)
+  return lines.join('\n')
+}
+
 // Interactive dots: `max` independent PDFCheckBoxes named "<slug>_1".."<slug>_<max>", one per
-// dot. Dot i is checked whenever i <= value, so filling reads the same as the web UI even
-// though nothing enforces contiguous fill server-side (a user editing the PDF directly could
-// check them out of order — acceptable, since these are now plain independent checkboxes).
+// dot, each wired with a mouseUp JS action (see `cumulativeFillScript`) so checking dot N in
+// Acrobat also fills dots 1..N-1, and unchecking it clears N+1..max.
 // `x` is the left edge of the whole row (dot 1's left edge), matching `dotCheckboxRowWidth`
 // for right-alignment math at call sites — not the center of dot 1.
 function checkboxDotsAt(canvas: PdfCanvas, form: PDFForm, slug: string, x: number, y: number, value: number, max: number) {
-  for (let i = 1; i <= max; i++) {
+  const names = Array.from({ length: max }, (_, i) => reserveFieldName(`${slug}_${i + 1}`))
+  names.forEach((name, idx) => {
+    const i = idx + 1
     const cx = x + DOT_CHECKBOX_SIZE / 2 + (i - 1) * DOT_CHECKBOX_SPACING
-    const checkBox = form.createCheckBox(reserveFieldName(`${slug}_${i}`))
+    const checkBox = form.createCheckBox(name)
     checkBox.addToPage(canvas.page, {
       x: cx - DOT_CHECKBOX_SIZE / 2,
       y: y - DOT_CHECKBOX_SIZE / 2,
@@ -250,7 +272,8 @@ function checkboxDotsAt(canvas: PdfCanvas, form: PDFForm, slug: string, x: numbe
     })
     checkBox.updateAppearances(checkboxDotAppearanceProvider)
     if (i <= value) checkBox.check()
-  }
+    attachMouseUpJs(canvas.doc, checkBox, cumulativeFillScript(names, idx))
+  })
   return dotCheckboxRowWidth(max)
 }
 
@@ -285,6 +308,25 @@ function traitColumns(canvas: PdfCanvas, form: PDFForm, columns: { label: string
   canvas.y = startY - blockHeight
 }
 
+// Recomputes the highest currently-marked wound level across all health checkboxes and writes
+// its consolidated label into the read-only "health_penalty_display" field. Attached to every
+// health checkbox's mouseUp so the display stays in sync with whichever box was just (un)checked.
+// Each box's display string is precomputed in TS via `healthPenaltyLabel` (shared with the web
+// UI) rather than re-deriving the label-bucketing logic in JavaScript — one source of truth.
+function healthPenaltyScript(boxes: { name: string; display: string }[]): string {
+  const entries = boxes.map((b) => `["${b.name}", "${b.display}"]`).join(', ')
+  return [
+    `var levels = [${entries}];`,
+    `var highest = -1;`,
+    `for (var i = 0; i < levels.length; i++) {`,
+    `  var f = this.getField(levels[i][0]);`,
+    `  if (f && f.value !== "Off") highest = i;`,
+    `}`,
+    `var display = this.getField("health_penalty_display");`,
+    `display.value = highest === -1 ? "${healthPenaltyLabel(null)}" : levels[highest][1];`,
+  ].join('\n')
+}
+
 function healthBlock(canvas: PdfCanvas, form: PDFForm, health: boolean[]) {
   const rows = groupHealthLevels(HEALTH_LEVELS)
   const rowHeight = 14
@@ -292,17 +334,20 @@ function healthBlock(canvas: PdfCanvas, form: PDFForm, health: boolean[]) {
   canvas.ensureSpace(blockHeight)
   const startY = canvas.y
 
+  const boxes: { checkBox: PDFCheckBox; name: string; display: string }[] = []
+
   let rowY = startY - 8
   rows.forEach((row) => {
     canvas.text(row.label, MARGIN, rowY, { size: 8.5 })
     canvas.text(row.penalty === '0' ? '—' : row.penalty, MARGIN + 140, rowY, { size: 7.5, color: COLORS.muted })
     const rowSlug = slugify(row.label)
     row.boxIndexes.forEach((index, i) => {
-      const name = row.boxIndexes.length > 1 ? `health_${rowSlug}_${i + 1}` : `health_${rowSlug}`
-      const checkBox = form.createCheckBox(reserveFieldName(name))
+      const name = reserveFieldName(row.boxIndexes.length > 1 ? `health_${rowSlug}_${i + 1}` : `health_${rowSlug}`)
+      const checkBox = form.createCheckBox(name)
       checkBox.addToPage(canvas.page, { x: MARGIN + 190 + i * 16, y: rowY - 6, width: 9, height: 9, borderWidth: 0 })
       checkBox.updateAppearances(healthCheckboxAppearanceProvider)
       if (health[index]) checkBox.check()
+      boxes.push({ checkBox, name, display: healthPenaltyLabel(HEALTH_LEVELS[index]) })
     })
     rowY -= rowHeight
   })
@@ -312,12 +357,22 @@ function healthBlock(canvas: PdfCanvas, form: PDFForm, health: boolean[]) {
   rowY -= 6
   canvas.line(MARGIN, rowY + 4, PAGE_WIDTH - MARGIN, rowY + 4)
   canvas.text('PENALIDADE ATUAL', MARGIN, rowY - 6, { size: 7.5, color: COLORS.muted })
-  canvas.text(
-    currentLevel ? `${currentLevel.label} (${currentLevel.penalty})` : 'Nenhum ferimento',
+  // Name is hardcoded (not slugified from a label) because the mouseUp scripts below reference
+  // it by this exact literal string.
+  textFieldAt(
+    canvas,
+    form,
+    '',
+    healthPenaltyLabel(currentLevel),
     MARGIN + 140,
-    rowY - 6,
-    { size: 8.5, bold: true, color: currentLevel && currentLevel.penalty !== '0' ? COLORS.danger : COLORS.text }
+    rowY + 6,
+    160,
+    14,
+    { name: 'health_penalty_display', readOnly: true, fontSize: 8.5, textColor: healthHasPenalty(currentLevel) ? COLORS.danger : COLORS.text }
   )
+
+  const script = healthPenaltyScript(boxes.map((b) => ({ name: b.name, display: b.display })))
+  boxes.forEach((b) => attachMouseUpJs(canvas.doc, b.checkBox, script))
 
   canvas.y = startY - blockHeight
 }
@@ -462,11 +517,6 @@ export async function generateMagePdf(data: MageSheetData): Promise<Uint8Array> 
     textFieldAt(canvas, form, 'Histórico & Anotações', data.notes, MARGIN, canvas.y, CONTENT_WIDTH, notesHeight - 11, { multiline: true })
     canvas.y -= notesHeight
   }
-
-  // Tells PDF readers (Acrobat, Preview, etc.) to trust/regenerate field appearances as
-  // needed, so the fillable dots/checkboxes/text render correctly everywhere even though
-  // we've hand-built their appearance streams ourselves.
-  form.acroForm.dict.set(PDFName.of('NeedAppearances'), PDFBool.True)
 
   return doc.save()
 }
