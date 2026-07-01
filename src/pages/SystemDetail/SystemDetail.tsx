@@ -427,17 +427,34 @@ export default function SystemDetail() {
             className="font-cinzel text-xs tracking-[0.5em] uppercase mb-4"
             style={{ color: system.color }}
           >
-            Em breve
+            {system.id === 'mago' ? 'Disponível agora' : 'Em breve'}
           </p>
           <h2 className="font-cinzel text-2xl md:text-3xl font-semibold text-wod-text mb-4">
             Criador de Fichas
           </h2>
           <p className="font-crimson text-xl text-wod-muted leading-relaxed mb-10">
-            Em breve você poderá montar, preencher e exportar fichas de personagem completas
-            para{' '}
-            <span style={{ color: system.color }}>{system.name}</span> diretamente nesta página.
+            {system.id === 'mago' ? (
+              <>
+                Monte, preencha e exporte sua ficha completa de{' '}
+                <span style={{ color: system.color }}>{system.name}</span> diretamente nesta página.
+              </>
+            ) : (
+              <>
+                Em breve você poderá montar, preencher e exportar fichas de personagem completas
+                para <span style={{ color: system.color }}>{system.name}</span> diretamente nesta página.
+              </>
+            )}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {system.id === 'mago' && (
+              <Link
+                to={`/sistemas/${system.id}/ficha`}
+                className="inline-flex items-center justify-center gap-2 font-cinzel text-xs tracking-widest uppercase px-7 py-3 rounded transition-all duration-300 text-wod-bg"
+                style={{ backgroundColor: system.color }}
+              >
+                Criar Ficha
+              </Link>
+            )}
             <Link
               to="/sistemas"
               className="inline-flex items-center justify-center gap-2 font-cinzel text-xs tracking-widest uppercase border border-wod-border text-wod-muted px-7 py-3 rounded transition-all duration-300 hover:border-wod-text hover:text-wod-text"

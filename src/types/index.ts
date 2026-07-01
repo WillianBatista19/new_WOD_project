@@ -23,3 +23,53 @@ export interface GameSystem {
   factions: Faction[];
   steps: CreationStep[];
 }
+
+// ── Character Sheet ──────────────────────────────────────────────────────────
+
+export interface DotTrait {
+  label: string;
+  value: number;
+}
+
+export interface HealthLevel {
+  label: string;
+  penalty: string;
+}
+
+export interface ReferenceEntry {
+  name: string;
+  description: string;
+}
+
+export interface MageSheetData {
+  header: {
+    name: string;
+    player: string;
+    chronicle: string;
+    tradition: string;
+    essence: string;
+    concept: string;
+    nature: string;
+    demeanor: string;
+  };
+  attributes: {
+    physical: DotTrait[];
+    social: DotTrait[];
+    mental: DotTrait[];
+  };
+  abilities: {
+    talents: DotTrait[];
+    skills: DotTrait[];
+    knowledges: DotTrait[];
+  };
+  spheres: DotTrait[];
+  backgrounds: DotTrait[];
+  health: boolean[];
+  arete: number;
+  quintessence: number;
+  paradox: number;
+  willpowerPermanent: number;
+  willpowerTemporary: number;
+  magicalFocus: string;
+  notes: string;
+}
