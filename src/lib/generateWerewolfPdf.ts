@@ -15,11 +15,12 @@ import {
   rgb,
 } from 'pdf-lib'
 import { DotTrait } from '../types'
-import { HEALTH_AGGRAVATED, HEALTH_SUPERFICIAL, HealthBoxState, VampireSheetData } from '../types/vampire'
+import { HealthBoxState, WerewolfSheetData } from '../types/werewolf'
 import { SYSTEMS } from '../data/systems'
-import { vampireHealthPenalty } from '../data/vampireHealth'
+import { werewolfHealthPenalty } from '../data/werewolfHealth'
+import { FORMS_REFERENCE } from '../data/werewolfReference'
 
-const VAMPIRE = SYSTEMS.find((s) => s.id === 'vampiro')!
+const WEREWOLF = SYSTEMS.find((s) => s.id === 'lobisomem')!
 
 const hexToRgb01 = (hex: string) => {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
@@ -32,15 +33,18 @@ const toRgb = (hex: string) => {
   return rgb(r, g, b)
 }
 
-// Vampiro: A Máscara palette (see CLAUDE.md — dark background, blood-red accent)
+// Lobisomem: O Apocalipse palette (see CLAUDE.md — dark background, green accent)
 const COLORS = {
   bg: toRgb('#0a0a0f'),
   card: toRgb('#111118'),
   text: toRgb('#e8e0d0'),
   muted: toRgb('#8a8090'),
   border: toRgb('#2a2a3a'),
-  accent: toRgb(VAMPIRE.color),
+  accent: toRgb(WEREWOLF.color),
   danger: rgb(0.9, 0.35, 0.35),
+  // Aggravated damage is always red, regardless of the system's own accent color — matches
+  // WerewolfHealthTrack.tsx's hardcoded "#c41e3a", the same universal WoD danger red V5 uses.
+  aggravated: toRgb('#c41e3a'),
 }
 
 const ACCENTS: Record<string, string> = {
@@ -77,7 +81,7 @@ function reserveFieldName(base: string): string {
 
 // Every trait dot is its own independent PDFCheckBox (never a radio group — some readers
 // render custom radio appearance streams as toggle switches or overlapping widgets instead
-// of plain circles). Checked = filled red circle; unchecked = empty outlined circle.
+// of plain circles). Checked = filled green circle; unchecked = empty outlined circle.
 const DOT_CHECKBOX_SIZE = 12
 const DOT_CHECKBOX_SPACING = 14
 
@@ -91,8 +95,8 @@ const checkboxDotAppearanceProvider: AppearanceProviderFor<PDFCheckBox> = (_chec
   return { normal: { on, off } }
 }
 
-// Plain filled square, no mark — used for Fome, matching HungerTrack.tsx's on-screen boxes.
-const hungerCheckboxAppearanceProvider: AppearanceProviderFor<PDFCheckBox> = (_checkBox, widget) => {
+// Plain filled square, no mark — used for Raiva, matching RageTrack.tsx's on-screen boxes.
+const rageCheckboxAppearanceProvider: AppearanceProviderFor<PDFCheckBox> = (_checkBox, widget) => {
   const { width, height } = widget.getRectangle()
   const rectBase = { x: 0, y: 0, width, height, rotate: degrees(0), xSkew: degrees(0), ySkew: degrees(0) }
   const off = drawRectangle({ ...rectBase, color: undefined, borderColor: COLORS.border, borderWidth: 1 })
@@ -100,10 +104,10 @@ const hungerCheckboxAppearanceProvider: AppearanceProviderFor<PDFCheckBox> = (_c
   return { normal: { on, off } }
 }
 
-// Outlined square + "/" mark for superficial damage — light gray, not red (only Aggravated is
-// red). The "off" appearance MUST leave `color` undefined (no fill): these two checkboxes fully
-// overlap the Aggravated widget on top of them, and a filled "off" rectangle would paint over —
-// and completely hide — this field's checked mark whenever the other field is unchecked.
+// Outlined square + "/" mark for superficial damage — light gray. The "off" appearance MUST
+// leave `color` undefined (no fill): these two checkboxes fully overlap the Aggravated widget
+// on top of them, and a filled "off" rectangle would paint over — and hide — this field's
+// checked mark whenever the other field is unchecked.
 const superficialCheckboxAppearanceProvider: AppearanceProviderFor<PDFCheckBox> = (_checkBox, widget) => {
   const { width, height } = widget.getRectangle()
   const rectBase = { x: 0, y: 0, width, height, rotate: degrees(0), xSkew: degrees(0), ySkew: degrees(0) }
@@ -125,9 +129,9 @@ const aggravatedCheckboxAppearanceProvider: AppearanceProviderFor<PDFCheckBox> =
   const off = drawRectangle({ ...rectBase, color: undefined, borderColor: COLORS.border, borderWidth: 1 })
   const inset = Math.min(width, height) * 0.2
   const on = [
-    ...drawRectangle({ ...rectBase, color: COLORS.card, borderColor: COLORS.accent, borderWidth: 1 }),
-    ...drawLine({ start: { x: inset, y: inset }, end: { x: width - inset, y: height - inset }, thickness: 3, color: COLORS.accent }),
-    ...drawLine({ start: { x: inset, y: height - inset }, end: { x: width - inset, y: inset }, thickness: 3, color: COLORS.accent }),
+    ...drawRectangle({ ...rectBase, color: COLORS.card, borderColor: COLORS.aggravated, borderWidth: 1 }),
+    ...drawLine({ start: { x: inset, y: inset }, end: { x: width - inset, y: height - inset }, thickness: 3, color: COLORS.aggravated }),
+    ...drawLine({ start: { x: inset, y: height - inset }, end: { x: width - inset, y: inset }, thickness: 3, color: COLORS.aggravated }),
   ]
   return { normal: { on, off } }
 }
@@ -295,10 +299,10 @@ function checkboxDotsAt(canvas: PdfCanvas, form: PDFForm, slug: string, x: numbe
   return dotCheckboxRowWidth(max)
 }
 
-// Fome fills left-to-right: box 1 (leftmost) is the first to light up as Hunger rises —
-// matches HungerTrack.tsx's on-screen behavior. Square boxes (not circles) to mirror the web UI.
-function hungerDotsAt(canvas: PdfCanvas, form: PDFForm, x: number, y: number, value: number, max = 5) {
-  const names = Array.from({ length: max }, (_, i) => reserveFieldName(`fome_${i + 1}`))
+// Raiva fills left-to-right: box 1 (leftmost) is the first to light up as Rage rises —
+// matches RageTrack.tsx's on-screen behavior. Square boxes (not circles) to mirror the web UI.
+function rageDotsAt(canvas: PdfCanvas, form: PDFForm, x: number, y: number, value: number, max = 5) {
+  const names = Array.from({ length: max }, (_, i) => reserveFieldName(`raiva_${i + 1}`))
   names.forEach((name, idx) => {
     const dot = idx + 1
     const cx = x + DOT_CHECKBOX_SIZE / 2 + idx * DOT_CHECKBOX_SPACING
@@ -310,7 +314,7 @@ function hungerDotsAt(canvas: PdfCanvas, form: PDFForm, x: number, y: number, va
       height: DOT_CHECKBOX_SIZE,
       borderWidth: 0,
     })
-    checkBox.updateAppearances(hungerCheckboxAppearanceProvider)
+    checkBox.updateAppearances(rageCheckboxAppearanceProvider)
     if (dot <= value) checkBox.check()
     attachMouseUpJs(canvas.doc, checkBox, cumulativeFillScript(names, idx))
   })
@@ -348,10 +352,36 @@ function traitColumns(canvas: PdfCanvas, form: PDFForm, columns: { label: string
   canvas.y = startY - blockHeight
 }
 
-// Recomputes the V5 penalty (see vampireHealthPenalty in data/vampireHealth.ts, mirrored here
-// as inline Acrobat JS since the PDF's script runtime can't call our TS helper) across both
-// damage-type checkboxes per box and writes it into the read-only "health_penalty_display"
-// field. Attached to every health checkbox's mouseUp so the display stays in sync.
+// Gifts are an editable, variable-length list per category (unlike the fixed Disciplines/
+// Sphere lists) — each row is a fillable name field plus a 1-5 dot rating, mirroring how
+// Mage's Backgrounds section pairs a text field with dots.
+function giftColumns(canvas: PdfCanvas, form: PDFForm, categories: { key: string; label: string; traits: DotTrait[] }[]) {
+  const rowHeight = 22
+  const maxRows = Math.max(...categories.map((c) => c.traits.length), 1)
+  const headerHeight = 14
+  const blockHeight = headerHeight + maxRows * rowHeight + 4
+  canvas.ensureSpace(blockHeight)
+  const startY = canvas.y
+  const colWidth = CONTENT_WIDTH / categories.length
+  const dotsWidth = dotCheckboxRowWidth(5)
+  categories.forEach((cat, ci) => {
+    const x = MARGIN + ci * colWidth
+    canvas.text(cat.label.toUpperCase(), x, startY - 8, { size: 8, bold: true, color: COLORS.accent })
+    let rowY = startY - headerHeight
+    cat.traits.forEach((gift, gi) => {
+      const fieldWidth = colWidth - 8 - dotsWidth - 10
+      textFieldAt(canvas, form, '', gift.label, x, rowY, fieldWidth, 14, { name: `dom_${cat.key}_${gi + 1}_nome`, fontSize: 8 })
+      checkboxDotsAt(canvas, form, `dom_${cat.key}_${gi + 1}`, x + fieldWidth + 10, rowY - 7, gift.value, 5)
+      rowY -= rowHeight
+    })
+  })
+  canvas.y = startY - blockHeight
+}
+
+// Recomputes the W5 penalty (see werewolfHealthPenalty in data/werewolfHealth.ts, mirrored
+// here as inline Acrobat JS since the PDF's script runtime can't call our TS helper) across
+// both damage-type checkboxes per box and writes it into the read-only
+// "health_penalty_display" field. Attached to every health checkbox's mouseUp.
 function healthPenaltyScript(boxes: { supName: string; aggName: string }[]): string {
   const entries = boxes.map((b) => `["${b.supName}", "${b.aggName}"]`).join(', ')
   return [
@@ -370,7 +400,7 @@ function healthPenaltyScript(boxes: { supName: string; aggName: string }[]): str
     `var emptyRemaining = 0;`,
     `for (var i = 0; i < total; i++) { if (states[i] === "none") emptyRemaining++; }`,
     `var display = this.getField("health_penalty_display");`,
-    `if (allAggravated) { display.value = "Morte Final (todas as caixas agravadas)"; }`,
+    `if (allAggravated) { display.value = "Morte (todas as caixas agravadas)"; }`,
     `else if (emptyRemaining === 0) { display.value = "Incapacitado (nenhuma caixa livre)"; }`,
     `else if (emptyRemaining === 1) { display.value = "-2 (resta 1 caixa livre)"; }`,
     `else if (emptyRemaining === 2) { display.value = "-1 (restam 2 caixas livres)"; }`,
@@ -388,7 +418,7 @@ function mutualExclusionScript(thisName: string, otherName: string, penaltyScrip
   ].join('\n')
 }
 
-// V5's Health track is a flat, unlabeled row of boxes (no named wound levels) sized by
+// W5's Health track is a flat, unlabeled row of boxes (no named wound levels) sized by
 // Vigor + 3 — `health.length` already reflects that, computed on the web sheet.
 function healthBlock(canvas: PdfCanvas, form: PDFForm, health: HealthBoxState[]) {
   const boxSize = 16
@@ -405,23 +435,22 @@ function healthBlock(canvas: PdfCanvas, form: PDFForm, health: HealthBoxState[])
     const supName = reserveFieldName(`health_sup_${index + 1}`)
     const aggName = reserveFieldName(`health_agg_${index + 1}`)
 
-    // Both widgets share the same rectangle. Superficial is added first (bottom of the paint
-    // order); Aggravated is added second, so it's on top and correctly wins visually if both
-    // ever end up checked — see the appearance providers above for why "off" must stay unfilled.
+    // Superficial is added first (bottom of the paint order); Aggravated is added second, so
+    // it's on top and correctly wins visually if both ever end up checked.
     const supBox = form.createCheckBox(supName)
     supBox.addToPage(canvas.page, { x: boxX, y: rowTopY - boxSize, width: boxSize, height: boxSize, borderWidth: 0 })
     supBox.updateAppearances(superficialCheckboxAppearanceProvider)
-    if (state === HEALTH_SUPERFICIAL) supBox.check()
+    if (state === 1) supBox.check()
 
     const aggBox = form.createCheckBox(aggName)
     aggBox.addToPage(canvas.page, { x: boxX, y: rowTopY - boxSize, width: boxSize, height: boxSize, borderWidth: 0 })
     aggBox.updateAppearances(aggravatedCheckboxAppearanceProvider)
-    if (state === HEALTH_AGGRAVATED) aggBox.check()
+    if (state === 2) aggBox.check()
 
     boxes.push({ sup: supBox, agg: aggBox, supName, aggName })
   })
 
-  const penalty = vampireHealthPenalty(health)
+  const penalty = werewolfHealthPenalty(health)
   const penaltyY = rowTopY - boxSize - 20
   canvas.line(MARGIN, penaltyY + 12, PAGE_WIDTH - MARGIN, penaltyY + 12)
   canvas.text('PENALIDADE ATUAL', MARGIN, penaltyY, { size: 7.5, color: COLORS.muted })
@@ -446,10 +475,10 @@ function healthBlock(canvas: PdfCanvas, form: PDFForm, health: HealthBoxState[])
   canvas.y = startY - blockHeight
 }
 
-export async function generateVampirePdf(data: VampireSheetData): Promise<Uint8Array> {
+export async function generateWerewolfPdf(data: WerewolfSheetData): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
-  doc.setTitle(`Ficha de Personagem — ${data.header.name || 'Vampiro: A Máscara'}`)
-  doc.setSubject('Vampiro: A Máscara (V5) — Ficha de Personagem')
+  doc.setTitle(`Ficha de Personagem — ${data.header.name || 'Lobisomem: O Apocalipse'}`)
+  doc.setSubject('Lobisomem: O Apocalipse (W5) — Ficha de Personagem')
 
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
@@ -458,20 +487,20 @@ export async function generateVampirePdf(data: VampireSheetData): Promise<Uint8A
 
   // ── Cover header ─────────────────────────────────────────────────────────
   canvas.ensureSpace(20)
-  canvas.text('VAMPIRO: A MÁSCARA', MARGIN, canvas.y - 10, { size: 16, bold: true, color: COLORS.accent })
+  canvas.text('LOBISOMEM: O APOCALIPSE', MARGIN, canvas.y - 10, { size: 16, bold: true, color: COLORS.accent })
   canvas.text('Ficha de Personagem — 5ª Edição', MARGIN, canvas.y - 24, { size: 8, color: COLORS.muted })
   canvas.y -= 34
 
   // ── Header fields ────────────────────────────────────────────────────────
-  sectionTitle(canvas, 'Cabeçalho', 'Quem é seu Kindred')
+  sectionTitle(canvas, 'Cabeçalho', 'Quem é seu Garou')
   {
     const fields: { label: string; value: string }[] = [
       { label: 'Nome do Personagem', value: data.header.name },
       { label: 'Jogador', value: data.header.player },
       { label: 'Crônica', value: data.header.chronicle },
-      { label: 'Clã', value: data.header.clan },
-      { label: 'Geração', value: data.header.generation },
-      { label: 'Predador', value: data.header.predatorType },
+      { label: 'Tribo', value: data.header.tribe },
+      { label: 'Auspício', value: data.header.auspice },
+      { label: 'Patrono (Espírito Tótem)', value: data.header.patron },
       { label: 'Conceito', value: data.header.concept },
       { label: 'Ambição', value: data.header.ambition },
       { label: 'Desejo', value: data.header.desire },
@@ -521,15 +550,25 @@ export async function generateVampirePdf(data: VampireSheetData): Promise<Uint8A
   )
   canvas.y -= 10
 
-  // ── Disciplines ──────────────────────────────────────────────────────────
-  sectionTitle(canvas, 'Disciplinas', '3 pontos — todo Kindred começa com 2 Disciplinas do seu Clã')
+  // ── Gifts ────────────────────────────────────────────────────────────────
+  sectionTitle(canvas, 'Dons', 'Cada Dom é um poder aprendido')
+  giftColumns(canvas, form, [
+    { key: 'tribo', label: 'Dons de Tribo', traits: data.gifts.tribe },
+    { key: 'auspicio', label: 'Dons de Auspício', traits: data.gifts.auspice },
+    { key: 'geral', label: 'Dons Gerais', traits: data.gifts.general },
+  ])
+  canvas.y -= 10
+
+  // ── Forms ────────────────────────────────────────────────────────────────
+  sectionTitle(canvas, 'Formas', 'As Cinco Formas do Garou')
   {
-    const chunkSize = Math.ceil(data.disciplines.length / 3)
-    const columns = [0, 1, 2].map((i) => ({
-      label: '',
-      traits: data.disciplines.slice(i * chunkSize, i * chunkSize + chunkSize),
-    }))
-    traitColumns(canvas, form, columns, 5)
+    const rowHeight = 26
+    FORMS_REFERENCE.forEach((form_) => {
+      canvas.ensureSpace(rowHeight)
+      canvas.text(form_.name.toUpperCase(), MARGIN, canvas.y - 8, { size: 8.5, bold: true, color: COLORS.accent })
+      canvas.text(form_.description, MARGIN, canvas.y - 19, { size: 7.5, color: COLORS.muted })
+      canvas.y -= rowHeight
+    })
   }
   canvas.y -= 10
 
@@ -542,22 +581,30 @@ export async function generateVampirePdf(data: VampireSheetData): Promise<Uint8A
   sectionTitle(canvas, 'Vantagens')
   {
     const halfWidth = (CONTENT_WIDTH - 16) / 2
+    const thirdWidth = (CONTENT_WIDTH - 16) / 3
 
     canvas.ensureSpace(30)
-    canvas.text('POTÊNCIA DE SANGUE', MARGIN, canvas.y - 8, { size: 9, bold: true, color: COLORS.accent })
-    canvas.text(String(data.bloodPotency), MARGIN + 110, canvas.y - 10, { size: 13, bold: true, color: COLORS.accent })
-    checkboxDotsAt(canvas, form, 'potencia_de_sangue', MARGIN + 150, canvas.y - 8, data.bloodPotency, 10)
+    ;([
+      ['GLÓRIA', data.renownGlory, 'gloria'],
+      ['HONRA', data.renownHonor, 'honra'],
+      ['SABEDORIA', data.renownWisdom, 'sabedoria'],
+    ] as const).forEach(([label, value, slug], i) => {
+      const x = MARGIN + i * (thirdWidth + 8)
+      canvas.text(label, x, canvas.y - 8, { size: 8, bold: true, color: COLORS.accent })
+      canvas.text(String(value), x + 70, canvas.y - 10, { size: 12, bold: true, color: COLORS.accent })
+      checkboxDotsAt(canvas, form, `renome_${slug}`, x, canvas.y - 22, value, 10)
+    })
+    canvas.y -= 34
+
+    canvas.ensureSpace(30)
+    canvas.text('HARMONIA', MARGIN, canvas.y - 8, { size: 9, bold: true, color: COLORS.accent })
+    canvas.text(String(data.harmony), MARGIN + 110, canvas.y - 10, { size: 13, bold: true, color: COLORS.accent })
+    checkboxDotsAt(canvas, form, 'harmonia', MARGIN + 150, canvas.y - 8, data.harmony, 10)
     canvas.y -= 30
 
     canvas.ensureSpace(30)
-    canvas.text('HUMANIDADE', MARGIN, canvas.y - 8, { size: 9, bold: true, color: COLORS.accent })
-    canvas.text(String(data.humanity), MARGIN + 110, canvas.y - 10, { size: 13, bold: true, color: COLORS.accent })
-    checkboxDotsAt(canvas, form, 'humanidade', MARGIN + 150, canvas.y - 8, data.humanity, 10)
-    canvas.y -= 30
-
-    canvas.ensureSpace(30)
-    canvas.text('FOME', MARGIN, canvas.y - 8, { size: 9, bold: true, color: COLORS.accent })
-    hungerDotsAt(canvas, form, MARGIN + 110, canvas.y - 8, data.hunger, 5)
+    canvas.text('RAIVA', MARGIN, canvas.y - 8, { size: 9, bold: true, color: COLORS.accent })
+    rageDotsAt(canvas, form, MARGIN + 110, canvas.y - 8, data.rage, 5)
     canvas.y -= 30
 
     canvas.ensureSpace(38)
@@ -574,17 +621,8 @@ export async function generateVampirePdf(data: VampireSheetData): Promise<Uint8A
   }
 
   // ── Free text ────────────────────────────────────────────────────────────
-  sectionTitle(canvas, 'Ressonância, Marcas de Referência & Histórico')
+  sectionTitle(canvas, 'Histórico & Anotações')
   {
-    canvas.ensureSpace(38)
-    textFieldAt(canvas, form, 'Ressonância', data.resonance, MARGIN, canvas.y, CONTENT_WIDTH, 18)
-    canvas.y -= 38
-
-    const touchstonesHeight = 44
-    canvas.ensureSpace(touchstonesHeight + 12)
-    textFieldAt(canvas, form, 'Marcas de Referência (Touchstones)', data.touchstones, MARGIN, canvas.y, CONTENT_WIDTH, touchstonesHeight - 11, { multiline: true })
-    canvas.y -= touchstonesHeight + 6
-
     const notesHeight = 90
     canvas.ensureSpace(notesHeight + 12)
     textFieldAt(canvas, form, 'Histórico & Anotações', data.notes, MARGIN, canvas.y, CONTENT_WIDTH, notesHeight - 11, { multiline: true })

@@ -431,13 +431,13 @@ export default function SystemDetail() {
             className="font-cinzel text-xs tracking-[0.5em] uppercase mb-4"
             style={{ color: system.color }}
           >
-            {system.id === 'mago' || system.id === 'vampiro' ? 'Disponível agora' : 'Em breve'}
+            {system.id === 'mago' || system.id === 'vampiro' || system.id === 'lobisomem' ? 'Disponível agora' : 'Em breve'}
           </p>
           <h2 className="font-cinzel text-2xl md:text-3xl font-semibold text-wod-text mb-4">
             Criador de Fichas
           </h2>
           <p className="font-crimson text-xl text-wod-muted leading-relaxed mb-10">
-            {system.id === 'mago' || system.id === 'vampiro' ? (
+            {system.id === 'mago' || system.id === 'vampiro' || system.id === 'lobisomem' ? (
               <>
                 Monte, preencha e exporte sua ficha completa de{' '}
                 <span style={{ color: system.color }}>{system.name}</span> diretamente nesta página.
@@ -450,7 +450,7 @@ export default function SystemDetail() {
             )}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {(system.id === 'mago' || system.id === 'vampiro') && (
+            {(system.id === 'mago' || system.id === 'vampiro' || system.id === 'lobisomem') && (
               <Link
                 to={`/sistemas/${system.id}/ficha`}
                 className="inline-flex items-center justify-center gap-2 font-cinzel text-xs tracking-widest uppercase px-7 py-3 rounded transition-all duration-300 text-wod-bg"
